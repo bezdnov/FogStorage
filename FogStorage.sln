@@ -1,0 +1,27 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FogStorageBackend", "FogStorageBackend\FogStorageBackend.csproj", "{514B37C1-D3A0-4BE3-8DB2-A81D98DC905F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{572E4755-B782-41CB-B6EF-CD7B65936362}"
+	ProjectSection(SolutionItems) = preProject
+		compose.yaml = compose.yaml
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FogStorageGUI", "FogStorageGUI\FogStorageGUI.csproj", "{94752F8F-6B8F-4732-9E97-27D29E362248}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{514B37C1-D3A0-4BE3-8DB2-A81D98DC905F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{514B37C1-D3A0-4BE3-8DB2-A81D98DC905F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{514B37C1-D3A0-4BE3-8DB2-A81D98DC905F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{514B37C1-D3A0-4BE3-8DB2-A81D98DC905F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{94752F8F-6B8F-4732-9E97-27D29E362248}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{94752F8F-6B8F-4732-9E97-27D29E362248}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{94752F8F-6B8F-4732-9E97-27D29E362248}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{94752F8F-6B8F-4732-9E97-27D29E362248}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
