@@ -9,6 +9,10 @@ namespace FogStorageBackend.HostedServices;
  */
 public class KeeperHostedService: IHostedService
 {
+    private void CheckShard()
+    {
+        
+    }
     public Task StartAsync(CancellationToken cancellationToken)
     {
         throw new NotImplementedException();

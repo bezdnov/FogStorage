@@ -9,8 +9,15 @@ namespace FogStorageBackend.Model;
  */
 public struct Shard
 {
-    public Guid ShardGuid;   // a unique shard ID, generated based on file ID
-    public Guid FileGuid;      // shard is linked to a file
-    public int ShardIndex;   // a number of shard, specific to each file
+    public string FileAESKeyEncrypted;
+    public string FilePublicKey;
+    public string FileAESIV;
+    public int ShardIndex;   // a number of shards, specific to each file
     public byte[] ShardBytes;
+    public byte[] PoOBytesUnencrypted;  // (PoO - proof of ownership)
+                                        // a small number of bytes, using which owner can proof his ownership. This is
+                                        // needed to speed up the check process
+    public byte[] PoOBytesEncrypted;
+    public int ShardTimeout;  // time after which shard can be deleted
+    public string MD5Checksum;  // ALERT!!! nothing stops holder from redacting a file and replacing checksum with something else.
 }

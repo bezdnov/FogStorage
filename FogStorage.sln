@@ -7,7 +7,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		compose.yaml = compose.yaml
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FogStorageGUI", "FogStorageGUI\FogStorageGUI.csproj", "{94752F8F-6B8F-4732-9E97-27D29E362248}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FogStorageTests", "FogStorageTests\FogStorageTests.csproj", "{0484C11E-C58E-47AB-901B-B4DBF5C34A07}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FogStorageGUI", "FogStorageGUI\FogStorageGUI.csproj", "{D033A2A6-3103-4037-83A6-5B0CA4EA0169}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -19,9 +21,13 @@ Global
 		{514B37C1-D3A0-4BE3-8DB2-A81D98DC905F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{514B37C1-D3A0-4BE3-8DB2-A81D98DC905F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{514B37C1-D3A0-4BE3-8DB2-A81D98DC905F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{94752F8F-6B8F-4732-9E97-27D29E362248}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{94752F8F-6B8F-4732-9E97-27D29E362248}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{94752F8F-6B8F-4732-9E97-27D29E362248}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{94752F8F-6B8F-4732-9E97-27D29E362248}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0484C11E-C58E-47AB-901B-B4DBF5C34A07}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0484C11E-C58E-47AB-901B-B4DBF5C34A07}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0484C11E-C58E-47AB-901B-B4DBF5C34A07}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0484C11E-C58E-47AB-901B-B4DBF5C34A07}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D033A2A6-3103-4037-83A6-5B0CA4EA0169}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D033A2A6-3103-4037-83A6-5B0CA4EA0169}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D033A2A6-3103-4037-83A6-5B0CA4EA0169}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D033A2A6-3103-4037-83A6-5B0CA4EA0169}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

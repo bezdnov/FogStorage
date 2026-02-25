@@ -6,5 +6,5 @@ public interface IFileOperator
 {
     public StoredFileInfo ReadFile(string filePath);
     public void WriteFile(StoredFileInfo fileInfo);
-
+    
 }
