@@ -15,11 +15,11 @@ public class KeeperHostedService: IHostedService
     }
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        while (true) ;
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        while (true) ;
     }
 }

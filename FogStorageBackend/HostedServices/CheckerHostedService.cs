@@ -2,6 +2,7 @@ using FogStorageBackend.Model;
 using FogStorageBackend.Repository;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using FogStorageBackend.REST;
 
 namespace FogStorageBackend.HostedServices;
 
@@ -11,15 +12,17 @@ namespace FogStorageBackend.HostedServices;
  */
 public class CheckerHostedService: IHostedService
 {
-    private ILogger _logger;
+    private ILogger<CheckerHostedService> _logger;
     private IShardOperator _shardOperator;
     private IFileOperator _fileOperator;
+    private WebHandler _webHandler;
     
-    public CheckerHostedService(ILogger logger, IShardOperator shardOperator, IFileOperator fileOperator)
+    public CheckerHostedService(ILogger<CheckerHostedService> logger, IShardOperator shardOperator, IFileOperator fileOperator)
     {
         _logger = logger;
         _shardOperator = shardOperator;
         _fileOperator = fileOperator;
+        _webHandler = new WebHandler();
     }
     
     // Sends requests to the network to check:
@@ -31,11 +34,14 @@ public class CheckerHostedService: IHostedService
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        while (true)
+        {
+            
+        }
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        return Task.CompletedTask;
     }
 }

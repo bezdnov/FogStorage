@@ -14,10 +14,12 @@ public struct Shard
     public string FileAESIV;
     public int ShardIndex;   // a number of shards, specific to each file
     public byte[] ShardBytes;
+    // These 2 fields are needed to holder to check if the one who wants the file is its owner
     public byte[] PoOBytesUnencrypted;  // (PoO - proof of ownership)
                                         // a small number of bytes, using which owner can proof his ownership. This is
                                         // needed to speed up the check process
     public byte[] PoOBytesEncrypted;
-    public int ShardTimeout;  // time after which shard can be deleted
+    public System.DateTime ShardLastCheckTime;  // time after which shard can be deleted
+    
     public string MD5Checksum;  // ALERT!!! nothing stops holder from redacting a file and replacing checksum with something else.
 }

@@ -5,11 +5,11 @@ namespace FogStorageBackend.Model;
 /*
  * Model class
  * Stores information on a saved file
- * Its important to mention, that information in shards is stored in encrypted way
+ * Its important to mention, that information in shards is stored in encrypted way, and FileInfo contains
+ * unencrypted file data
  */
 public struct StoredFileInfo
 {
-    public string? FilePath;
     public string FilePrivateKey;
     public string FilePublicKey;
     public string FileAESKey;

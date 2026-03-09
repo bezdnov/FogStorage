@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
+using FogStorageBackend.Configuration;
 using FogStorageBackend.Model;
+using Microsoft.Extensions.Logging;
 
 namespace FogStorageBackend.Repository;
 
@@ -7,9 +9,19 @@ namespace FogStorageBackend.Repository;
  * FileOperator
  * A class which does operations to a file on disk
  * File is stored unencrypted in RAM, and encryption is done during sharding, decryption - during restoring
+ * The only cryptography done here is generation of RSA keypair
  */
 public class FileOperator: IFileOperator
 {
+    private readonly ILogger<FileOperator> _logger;
+    private readonly ApplicationGeneralSettings _appSettings;
+
+    public FileOperator(ILogger<FileOperator> logger, ApplicationGeneralSettings appSettings)
+    {
+        _logger = logger;
+        _appSettings = appSettings;
+    }
+    
     public StoredFileInfo ReadFile(string filePath)
     {
         StoredFileInfo fileInfo = new StoredFileInfo();
@@ -17,7 +29,6 @@ public class FileOperator: IFileOperator
         {
             fileInfo.FileBytes = sr.ReadBytes((int)sr.BaseStream.Length);
         }
-        fileInfo.FilePath = filePath;
         
         using (var rsa = RSA.Create())
         {
@@ -36,12 +47,21 @@ public class FileOperator: IFileOperator
 
         return fileInfo;
     }
-
-    public void WriteFile(StoredFileInfo fileInfo)
+    
+    public void WriteFile(StoredFileInfo fileInfo, string fileName)
     {
-        using (BinaryWriter bw = new BinaryWriter(File.Open(fileInfo.FilePath, FileMode.Create)))
+        var filePath = CreateFilePath(fileName);
+        Console.WriteLine(filePath);
+        
+        using (BinaryWriter bw = new BinaryWriter(File.Open(filePath, FileMode.Create)))
         {
             bw.Write(fileInfo.FileBytes);
         }
+    }
+
+    private string CreateFilePath(string fileName)
+    {
+        // Console.WriteLine("asdkljflasjdlk;fjas;ldjf;lasdjfl;kasjd;lkfjasldf" + Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), _appSettings.DownloadFolder, fileName);
     }
 }
