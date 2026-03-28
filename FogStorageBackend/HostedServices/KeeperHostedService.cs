@@ -1,4 +1,6 @@
+using FogStorageBackend.WebHandling;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace FogStorageBackend.HostedServices;
 
@@ -9,6 +11,11 @@ namespace FogStorageBackend.HostedServices;
  */
 public class KeeperHostedService: IHostedService
 {
+    public KeeperHostedService(ILogger<KeeperHostedService> logger, WebSocketsCommunicator communicator)
+    {
+        
+    } 
+    
     private void CheckShard()
     {
         

@@ -3,7 +3,24 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        MinWidth="500"
+        MaxWidth="500"
+        MinHeight="700"
+        MaxHeight="700"
         x:Class="FogStorageGUI.MainWindow"
-        Title="FogStorageGUI">
-    Welcome to Avalonia!
+        Title="FogStorage"
+        WindowStartupLocation="CenterScreen">
+        <Border BorderBrush="Indigo" BorderThickness="5" Padding="40" Margin="20">
+                <StackPanel>
+                        <TextBlock FontSize="48" HorizontalAlignment="Left" Margin="40" x:Name="AppName">Fog Storage</TextBlock>
+                        <Button Content="Save file" HorizontalContentAlignment="Center"  HorizontalAlignment="Center"
+                                Width="120" Click="OnSaveFile" Margin="10"/>
+                        <Button Content="Restore file" HorizontalContentAlignment="Center" HorizontalAlignment="Center"
+                                Width="120" Click="OnRestoreFile" Margin="10" />
+                        <Button Content="Configuration" HorizontalAlignment="Center" HorizontalContentAlignment="Center"
+                                Width="120" Click="OnConfigureSettings" Margin="100"/>
+                        
+                </StackPanel>
+        </Border> 
 </Window>
+

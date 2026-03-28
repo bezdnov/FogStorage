@@ -13,4 +13,8 @@ public interface IShardOperator
     public LinkedList<Shard> LoadAllShards();
     public void DeleteShard(Shard shard);
     public Shard? LoadShardByName(string shardName);
+    public List<string> GetShardNames();
+    
+    public int CalculateShardWeight();
+    public bool HasShardWithPubkey(string filePrivateKey);
 }

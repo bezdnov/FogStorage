@@ -1,8 +1,10 @@
+using FogStorageBackend.Configuration;
+using FogStorageBackend.Constants;
 using FogStorageBackend.Model;
 using FogStorageBackend.Repository;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using FogStorageBackend.REST;
+using FogStorageBackend.WebHandling;
 
 namespace FogStorageBackend.HostedServices;
 
@@ -15,28 +17,32 @@ public class CheckerHostedService: IHostedService
     private ILogger<CheckerHostedService> _logger;
     private IShardOperator _shardOperator;
     private IFileOperator _fileOperator;
-    private WebHandler _webHandler;
+    private WebSocketsCommunicator _webSocketsCommunicator;
+    private ApplicationGeneralSettings _settings;
     
-    public CheckerHostedService(ILogger<CheckerHostedService> logger, IShardOperator shardOperator, IFileOperator fileOperator)
+    public CheckerHostedService(
+        ILogger<CheckerHostedService> logger, 
+        IShardOperator shardOperator, 
+        IFileOperator fileOperator,  
+        WebSocketsCommunicator webSocketsCommunicator
+        )
     {
         _logger = logger;
         _shardOperator = shardOperator;
         _fileOperator = fileOperator;
-        _webHandler = new WebHandler();
+        _webSocketsCommunicator = webSocketsCommunicator;
     }
     
     // Sends requests to the network to check:
-    // amount of nodes which store each shard for 1 file
-    private void CheckFileAvailability()
-    {
-        
-    }
-
+    // auto-deletes files unchecked by Rightholder
     public Task StartAsync(CancellationToken cancellationToken)
     {
         while (true)
         {
+            Task.Delay(StorageConstants.CheckTimeout);
             
+            // TODO getting private key from local storage
+            _webSocketsCommunicator.CheckFileStatus("private key");
         }
     }
 

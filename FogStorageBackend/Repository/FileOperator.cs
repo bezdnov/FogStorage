@@ -21,10 +21,16 @@ public class FileOperator: IFileOperator
         _logger = logger;
         _appSettings = appSettings;
     }
+
+    public FileOperator()
+    {
+        _logger = new Logger<FileOperator>(new LoggerFactory());
+        // _appSettings = new ApplicationGeneralSettings();
+    }
     
     public StoredFileInfo ReadFile(string filePath)
     {
-        StoredFileInfo fileInfo = new StoredFileInfo();
+        var fileInfo = new StoredFileInfo();
         using (var sr = new BinaryReader(File.Open(filePath, FileMode.Open)))
         {
             fileInfo.FileBytes = sr.ReadBytes((int)sr.BaseStream.Length);
@@ -47,6 +53,11 @@ public class FileOperator: IFileOperator
 
         return fileInfo;
     }
+
+    public StoredFileInfo ReadFile(Uri pathUri)
+    {
+        return ReadFile(pathUri.ToString());
+    }
     
     public void WriteFile(StoredFileInfo fileInfo, string fileName)
     {
@@ -61,7 +72,6 @@ public class FileOperator: IFileOperator
 
     private string CreateFilePath(string fileName)
     {
-        // Console.WriteLine("asdkljflasjdlk;fjas;ldjf;lasdjfl;kasjd;lkfjasldf" + Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), _appSettings.DownloadFolder, fileName);
     }
 }

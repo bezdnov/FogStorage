@@ -27,6 +27,7 @@ public class OperatorsTest
             ApplicationDefaultFolder = "/home/cursed_nerd/.local/share/FogStorage/",
             ShardFolderName = tempDir,
             DownloadFolder = tempDir,
+            DbFolderName = tempDir,
         };
 
         FileOperator fo = new FileOperator(logger, appSettings);
@@ -44,12 +45,13 @@ public class OperatorsTest
     [InlineData("tempfile2.txt", "This is some bigger content! abacaba19")]
     public void TestShardOperator(string filename, string fileContent)
     {
-        string tmpFolder = Path.GetTempPath();
+        var tmpFolder = Path.GetTempPath();
         ApplicationGeneralSettings appSettings = new ApplicationGeneralSettings()
         {
             ApplicationDefaultFolder = "/home/cursed/.local/share/FogStorage/",
             ShardFolderName = tmpFolder,
             DownloadFolder = tmpFolder,
+            DbFolderName = tmpFolder,
         };
         Logger<ShardOperator> logger1 = new Logger<ShardOperator>(new LoggerFactory());
         Logger<FileOperator> logger2 = new Logger<FileOperator>(new LoggerFactory());

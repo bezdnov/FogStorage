@@ -25,11 +25,18 @@ public class ShardOperator: IShardOperator
     private readonly ApplicationGeneralSettings _appSettings;
     private readonly ILogger _logger;
     
+    private JsonSerializerOptions _jsonSerializerOptions;
     
     public ShardOperator(ILogger<ShardOperator> logger, IOptions<ApplicationGeneralSettings> appSettings)
     {
         _appSettings = appSettings.Value;
         _logger = logger;
+
+        _jsonSerializerOptions = new JsonSerializerOptions()
+        {
+            IncludeFields = true,
+            PropertyNameCaseInsensitive = false,
+        };
     }
 
     public ShardOperator(ILogger<ShardOperator> logger, ApplicationGeneralSettings appSettings)
@@ -77,6 +84,8 @@ public class ShardOperator: IShardOperator
 
             var md5Hash = MD5.HashData(fileShardBytes);
 
+            var PoOBytes = RandomNumberGenerator.GetBytes(16);
+
             shards[i] = new Shard
             {
                 ShardBytes = fileShardBytes,
@@ -85,7 +94,9 @@ public class ShardOperator: IShardOperator
                 FilePublicKey = fileInfo.FilePublicKey,
                 FileAESKeyEncrypted = Convert.ToHexString(aesKeyEncrypted),
                 MD5Checksum = Convert.ToHexString(md5Hash),
-                ShardLastCheckTime = DateTime.UtcNow
+                ShardLastCheckTime = DateTime.UtcNow,
+                ProofBytesUnencrypted = PoOBytes,
+                ProofBytesEncrypted = RsaEncryptor.RsaBytesEncrypt(PoOBytes, fileInfo.FilePublicKey)
             };
         }
 
@@ -174,12 +185,8 @@ public class ShardOperator: IShardOperator
         
         // Serialization is mostly used with public properties, not with structures.
         // So I use these options to work with them
-        var jsonSerializationOptions = new JsonSerializerOptions
-        {
-            IncludeFields = true
-        };
 
-        var jsonData = JsonSerializer.Serialize(shard, jsonSerializationOptions);
+        var jsonData = JsonSerializer.Serialize(shard, _jsonSerializerOptions);
         
         File.WriteAllBytes(shardPath, Encoding.UTF8.GetBytes(jsonData));
     }
@@ -197,7 +204,7 @@ public class ShardOperator: IShardOperator
         File.Delete(shardPath);
     }
 
-    private List<string> GetShardNames()
+    public List<string> GetShardNames()
     {
         var shardFolder = Path.Combine(_appSettings.ApplicationDefaultFolder, _appSettings.ShardFolderName);
         var shardFiles = Directory.GetFiles(shardFolder);
@@ -209,8 +216,7 @@ public class ShardOperator: IShardOperator
             if (!file.EndsWith(".shard")) {
                 _logger.LogWarning($"File {file} doesn't have '.shard' extension; ignored");
             }
-            //
-            var enumerable = shardNames.Append(file);
+            shardNames.Add(file);
         }
 
         return shardNames;
@@ -230,7 +236,8 @@ public class ShardOperator: IShardOperator
 
         try
         {
-            shard = JsonSerializer.Deserialize<Shard>(File.ReadAllText(shardPath));
+            var text = File.ReadAllText(shardPath);
+            shard = JsonSerializer.Deserialize<Shard>(text);
         }
         catch (SerializationException ex)
         {
@@ -243,7 +250,6 @@ public class ShardOperator: IShardOperator
     // load all existing shards from standard folder
     public LinkedList<Shard> LoadAllShards()
     {
-        var shardFolder = Path.Combine(_appSettings.ApplicationDefaultFolder, _appSettings.ShardFolderName);
         var shardNames = GetShardNames();
         
         LinkedList<Shard> shards = new LinkedList<Shard>();
@@ -256,7 +262,7 @@ public class ShardOperator: IShardOperator
             var shard = LoadShardByName(file);
             if (shard != null)
             {
-                shards.Append((Shard)shard);
+                shards.AddLast(shard);
             }
         }
 
@@ -267,6 +273,21 @@ public class ShardOperator: IShardOperator
     private static string CreateShardName(Shard shard)
     {
         return string.Concat("shard-", shard.FilePublicKey.AsSpan(0, 16), "-", Convert.ToString(shard.ShardIndex));
+    }
+
+    public int CalculateShardWeight() => LoadAllShards().Sum(shard => shard.ShardBytes.Length);
+    
+    public bool HasShardWithPubkey(string filePrivateKey)
+    {
+        _logger.LogDebug($"Checking if shard with public key (first 10 bytes) {filePrivateKey.AsSpan(0, 20)} exists");
+        foreach (var shard in LoadAllShards())
+        {
+            Console.WriteLine(shard.FilePublicKey);
+            if (filePrivateKey == shard.FilePublicKey)
+                return true;
+        }
+
+        return false;
     }
 }
 

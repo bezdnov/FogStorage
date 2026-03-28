@@ -5,16 +5,42 @@ using FogStorageBackend.Configuration;
 using FogStorageBackend.HostedServices;
 using FogStorageBackend.Model;
 using FogStorageBackend.Repository;
-using FogStorageBackend.REST;
+using FogStorageBackend.WebHandling;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
+        /*
+        ApplicationGeneralSettings appSettings = new ApplicationGeneralSettings()
+        {
+            ApplicationDefaultFolder = "/home/cursed_nerd/.local/share/FogStorage/",
+            ShardFolderName = "Shards",
+            DownloadFolder = "/home/cursed_nerd/Downloads/",
+        };
         
+        var factory = new LoggerFactory();
+        ILogger<ShardOperator> logger1 = new Logger<ShardOperator>(factory);
+        ILogger<WebSocketsCommunicator> logger2 = new Logger<WebSocketsCommunicator>(factory);
+        ILogger<FileOperator> logger3 = new Logger<FileOperator>(factory);
+        
+        ShardOperator so = new ShardOperator(logger1, appSettings);
+        FileOperator fo = new FileOperator(logger3, appSettings);
+        var communicator = new WebSocketsCommunicator(logger2, so, fo);
+        await communicator.Init();
+        
+        List<string> names = so.GetShardNames();
+        
+        if (so.LoadShardByName(names[0]) is { } shard)
+        {
+            await communicator.SendShard(shard);
+        }
+        */
+        
+
         var host = Host.CreateDefaultBuilder().ConfigureServices((context, services) =>
         {
             services.Configure<ApplicationGeneralSettings>(context.Configuration.GetSection("ApplicationGeneralSettings"));
