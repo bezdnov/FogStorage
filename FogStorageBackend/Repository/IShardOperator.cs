@@ -11,10 +11,11 @@ public interface IShardOperator
     public void SaveShard(Shard shard);
     // Load all shards from shard folder
     public LinkedList<Shard> LoadAllShards();
-    public void DeleteShard(Shard shard);
+    public void DeleteShard(string filePublicKey);
     public Shard? LoadShardByName(string shardName);
     public List<string> GetShardNames();
     
     public int CalculateShardWeight();
-    public bool HasShardWithPubkey(string filePrivateKey);
+    public bool HasShardWithPubkey(string filePrivateKey, int shardIndex=-1);
+    public Shard? LoadShardByPublicKey(string publicKey);
 }

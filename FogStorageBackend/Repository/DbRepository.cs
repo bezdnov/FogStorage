@@ -1,3 +1,4 @@
+using FogStorageBackend.Configuration;
 using FogStorageBackend.Constants;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
@@ -8,7 +9,7 @@ namespace FogStorageBackend.Repository;
 /*
  * DbRepository.cs
  * This class is needed to operate with SQLite database, which is used to store information on RSA keypairs
- * of each stored file 
+ * of each file stored in the Fog
  */
 public class DbRepository : IDbRepository
 {
@@ -18,14 +19,14 @@ public class DbRepository : IDbRepository
     {
         _logger = logger;
 
-        using (var connection = new SqliteConnection(SqliteConstants.ConnectionString))
+        using (var connection = new SqliteConnection(CreateConnectionString()))
         {
             connection.Open();
             var createTableCmd = connection.CreateCommand();
             createTableCmd.CommandText = SqliteConstants.CreateTable;
             createTableCmd.ExecuteNonQuery();
             
-            _logger.LogDebug("Table created or checked");
+            _logger.LogDebug("Table created or checked {connectionString}", CreateConnectionString());
         }
     } 
     
@@ -33,7 +34,7 @@ public class DbRepository : IDbRepository
     {
         var keys = new LinkedList<string>();
         
-        using (var connection = new SqliteConnection(SqliteConstants.ConnectionString))
+        using (var connection = new SqliteConnection(CreateConnectionString()))
         {
             connection.Open();
             var getPrivateKeysCmd = connection.CreateCommand();
@@ -58,7 +59,7 @@ public class DbRepository : IDbRepository
     {
         var keys = new LinkedList<string>();
         
-        using (var connection = new SqliteConnection(SqliteConstants.ConnectionString))
+        using (var connection = new SqliteConnection(CreateConnectionString()))
         {
             connection.Open();
             var getPrivateKeysCmd = connection.CreateCommand();
@@ -79,9 +80,31 @@ public class DbRepository : IDbRepository
         return keys.ToArray();
     }
 
+    public string GetPrivateKeyByPublicKey(string publicKey)
+    {
+        using (var connection = new SqliteConnection(CreateConnectionString()))
+        {
+            connection.Open();
+            var getPrivateKeyCmd = connection.CreateCommand();
+            getPrivateKeyCmd.CommandText = SqliteConstants.GetPrivateKeyByPublicKey;
+
+            using (var reader = getPrivateKeyCmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    var privateKey = reader.GetString(0);
+                    _logger.LogDebug($"Read private key {privateKey}");
+                    
+                    return privateKey;
+                }
+            }
+        }
+        return string.Empty;
+    }
+
     public void SaveFileData(string filename, string privateKey, string publicKey)
     {
-        using (var connection = new SqliteConnection(SqliteConstants.ConnectionString))
+        using (var connection = new SqliteConnection(CreateConnectionString()))
         {
             connection.Open();
             var insertFileDataCmd = connection.CreateCommand();
@@ -91,5 +114,14 @@ public class DbRepository : IDbRepository
             
             _logger.LogDebug($"Insertion returned {res}");
         }
+    }
+
+    private static string CreateConnectionString()
+    {
+        var homeFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var folderPath = Path.Combine(homeFolder, ".local/share/FogStorage/Db");
+        var dbPath = Path.Combine(folderPath, SqliteConstants.DbName);
+
+        return $"Data Source={dbPath}";
     }
 }

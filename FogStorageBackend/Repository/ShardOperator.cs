@@ -84,7 +84,7 @@ public class ShardOperator: IShardOperator
 
             var md5Hash = MD5.HashData(fileShardBytes);
 
-            var PoOBytes = RandomNumberGenerator.GetBytes(16);
+            var proofBytes = RandomNumberGenerator.GetBytes(16);
 
             shards[i] = new Shard
             {
@@ -95,8 +95,8 @@ public class ShardOperator: IShardOperator
                 FileAESKeyEncrypted = Convert.ToHexString(aesKeyEncrypted),
                 MD5Checksum = Convert.ToHexString(md5Hash),
                 ShardLastCheckTime = DateTime.UtcNow,
-                ProofBytesUnencrypted = PoOBytes,
-                ProofBytesEncrypted = RsaEncryptor.RsaBytesEncrypt(PoOBytes, fileInfo.FilePublicKey)
+                ProofBytesUnencrypted = proofBytes,
+                ProofBytesEncrypted = RsaEncryptor.RsaBytesEncrypt(proofBytes, fileInfo.FilePublicKey)
             };
         }
 
@@ -191,21 +191,26 @@ public class ShardOperator: IShardOperator
         File.WriteAllBytes(shardPath, Encoding.UTF8.GetBytes(jsonData));
     }
 
-    public void DeleteShard(Shard shard)
+    public void DeleteShard(string filePublicKey)
     {
+        _logger.LogDebug($"Deleting shard: {filePublicKey.AsSpan(0, 20)}");
         var shardFolder = Path.Combine(_appSettings.ApplicationDefaultFolder, _appSettings.ShardFolderName);
         if (!Directory.Exists(shardFolder))
         {
             _logger.LogDebug($"Creating a new shard folder: {shardFolder}");
             Directory.CreateDirectory(shardFolder);
         }
-        
-        var shardPath = Path.Combine(shardFolder, CreateShardName(shard));
-        File.Delete(shardPath);
+
+        for (var i = 0; i < StorageConstants.ShardingFactor; ++i)
+        {
+            var shardPath = Path.Combine(shardFolder, CreateShardName(filePublicKey, i));
+            File.Delete(shardPath);
+        }
     }
 
     public List<string> GetShardNames()
     {
+        _logger.LogDebug("Getting shard names");
         var shardFolder = Path.Combine(_appSettings.ApplicationDefaultFolder, _appSettings.ShardFolderName);
         var shardFiles = Directory.GetFiles(shardFolder);
 
@@ -224,13 +229,13 @@ public class ShardOperator: IShardOperator
 
     public Shard? LoadShardByName(string shardName)
     {
+        _logger.LogDebug("Loading shard by name {shardName}", shardName);
         if (!shardName.EndsWith(".shard")) {
             _logger.LogWarning($"File {shardName} doesn't have '.shard' extension; ignored");
         }
         
         var shardFolder = Path.Combine(_appSettings.ApplicationDefaultFolder, _appSettings.ShardFolderName);
         var shardPath = Path.Combine(shardFolder, shardName);
-        
 
         Shard shard;
 
@@ -241,7 +246,7 @@ public class ShardOperator: IShardOperator
         }
         catch (SerializationException ex)
         {
-            _logger.LogWarning($"Couldn't load deserealize {shardName}");
+            _logger.LogWarning("Couldn't deserialize {shardName}", shardName);
             return null;
         }
         return shard;
@@ -268,22 +273,42 @@ public class ShardOperator: IShardOperator
 
         return shards;
     }
+
+    public Shard? LoadShardByPublicKey(string publicKey)
+    {
+        _logger.LogDebug($"Trying to load shard by public key (first 10 bytes) {publicKey.AsSpan(0, 20)} exists");
+        foreach (var shard in LoadAllShards())
+        {
+            // Console.WriteLine(shard.FilePublicKey);
+            if (publicKey == shard.FilePublicKey)
+                return shard;
+        }
+        
+        _logger.LogDebug("Didn't found a shard");
+        return null;
+    }
     
     // Standard way to create shard name. Only one shard of 1 file is used in real world
-    private static string CreateShardName(Shard shard)
+    private static string CreateShardName(Shard shard) => CreateShardName(shard.FilePublicKey, shard.ShardIndex);
+    // {
+    // return string.Concat("shard-", shard.FilePublicKey.AsSpan(0, 16), "-", Convert.ToString(shard.ShardIndex));
+    // }
+    
+    private static string CreateShardName(string filePublicKey, int shardIndex)
     {
-        return string.Concat("shard-", shard.FilePublicKey.AsSpan(0, 16), "-", Convert.ToString(shard.ShardIndex));
+        return string.Concat("shard-", filePublicKey.AsSpan(0, 16), "-", Convert.ToString(shardIndex));
     }
+    
 
     public int CalculateShardWeight() => LoadAllShards().Sum(shard => shard.ShardBytes.Length);
     
-    public bool HasShardWithPubkey(string filePrivateKey)
+    public bool HasShardWithPubkey(string publicKey, int shardIndex=-1)
     {
-        _logger.LogDebug($"Checking if shard with public key (first 10 bytes) {filePrivateKey.AsSpan(0, 20)} exists");
+        _logger.LogDebug($"Checking if shard with public key (first 10 bytes) {publicKey.AsSpan(0, 20)} exists");
         foreach (var shard in LoadAllShards())
         {
-            Console.WriteLine(shard.FilePublicKey);
-            if (filePrivateKey == shard.FilePublicKey)
+            // Console.WriteLine(shard.FilePublicKey);
+            if (publicKey == shard.FilePublicKey && (shardIndex == -1 || shard.ShardIndex == shardIndex))
                 return true;
         }
 

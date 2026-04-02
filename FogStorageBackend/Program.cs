@@ -2,6 +2,7 @@
 
 using System.Text;
 using FogStorageBackend.Configuration;
+using FogStorageBackend.Constants;
 using FogStorageBackend.HostedServices;
 using FogStorageBackend.Model;
 using FogStorageBackend.Repository;
@@ -20,6 +21,7 @@ class Program
             ApplicationDefaultFolder = "/home/cursed_nerd/.local/share/FogStorage/",
             ShardFolderName = "Shards",
             DownloadFolder = "/home/cursed_nerd/Downloads/",
+            DbFolderName = "Db"
         };
         
         var factory = new LoggerFactory();
@@ -39,7 +41,6 @@ class Program
             await communicator.SendShard(shard);
         }
         */
-        
 
         var host = Host.CreateDefaultBuilder().ConfigureServices((context, services) =>
         {
@@ -49,7 +50,10 @@ class Program
 
             services.AddSingleton<IShardOperator, ShardOperator>();
             services.AddSingleton<IFileOperator, FileOperator>();
+            services.AddSingleton<IDbRepository, DbRepository>();
+            services.AddSingleton<WebSocketsCommunicator>();
 
+            services.AddHostedService<InitializerHostedService>();
             services.AddHostedService<CheckerHostedService>();
             services.AddHostedService<KeeperHostedService>();
         }).ConfigureLogging(logging =>
@@ -59,6 +63,7 @@ class Program
             logging.SetMinimumLevel(LogLevel.Debug);
         })
         .Build();
+        
         host.Run();
     }
 }
