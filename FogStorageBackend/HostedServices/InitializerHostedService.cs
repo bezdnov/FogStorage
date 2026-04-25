@@ -7,21 +7,20 @@ using Microsoft.Extensions.Options;
 namespace FogStorageBackend.HostedServices;
 
 /*
- * This hosted service exists for one reason: there's a need in initilization of WebSocketsCommunicator,
+ * This hosted service exists for one reason: there's a need in initialization of WebSocketsCommunicator,
  * folders and database
  */
 public class InitializerHostedService(ILogger<InitializerHostedService> logger, WebSocketsCommunicator communicator, IOptions<ApplicationGeneralSettings> applicationSettings)
     : IHostedService
 {
-    private readonly ILogger<InitializerHostedService> _logger = logger;
     private readonly ApplicationGeneralSettings _appSettings = applicationSettings.Value;
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        _logger.LogDebug("Initialization of communicator");
+        logger.LogDebug("Initialization of communicator");
         await communicator.Init();
         
-        _logger.LogDebug("Initialization of FogStorage default folders");
+        logger.LogDebug("Initialization of FogStorage default folders");
         
         if (!Directory.Exists(_appSettings.ApplicationDefaultFolder))
             Directory.CreateDirectory(_appSettings.ApplicationDefaultFolder);
@@ -35,9 +34,7 @@ public class InitializerHostedService(ILogger<InitializerHostedService> logger, 
         if (!Directory.Exists(dbFolder))
             Directory.CreateDirectory(dbFolder);
         
-        
-
-        _logger.LogDebug("Initialization ended");
+        logger.LogDebug("Initialization ended");
     }
 
     public Task StopAsync(CancellationToken cancellationToken)

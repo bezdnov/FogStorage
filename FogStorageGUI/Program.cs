@@ -1,7 +1,9 @@
 ﻿using Avalonia;
 using System;
 using FogStorageBackend.Configuration;
+using FogStorageBackend.HostedServices;
 using FogStorageBackend.Repository;
+using FogStorageBackend.WebHandling;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -24,6 +26,12 @@ class Program
 
                 services.AddSingleton<IFileOperator, FileOperator>();
                 services.AddSingleton<IShardOperator, ShardOperator>();
+                services.AddSingleton<IDbRepository, DbRepository>();
+                services.AddSingleton<WebSocketsCommunicator>();
+
+                services.AddHostedService<InitializerHostedService>();
+                services.AddHostedService<CheckerHostedService>();
+                services.AddHostedService<KeeperHostedService>();
             }).ConfigureLogging(logging =>
             {
                 logging.ClearProviders();
@@ -32,12 +40,12 @@ class Program
             })
             .Build();
         
-        // AppHost.Run();
+        AppHost.RunAsync();
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 
     // Avalonia configuration, don't remove; also used by visual designer.
-    public static AppBuilder BuildAvaloniaApp()
+    private static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()

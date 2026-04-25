@@ -25,11 +25,11 @@ public class FileOperator: IFileOperator
     public FileOperator()
     {
         _logger = new Logger<FileOperator>(new LoggerFactory());
-        // _appSettings = new ApplicationGeneralSettings();
     }
     
     public StoredFileInfo ReadFile(string filePath)
     {
+        _logger.LogDebug($"Reading a file by path: {filePath}");
         var fileInfo = new StoredFileInfo();
         using (var sr = new BinaryReader(File.Open(filePath, FileMode.Open)))
         {
@@ -61,6 +61,7 @@ public class FileOperator: IFileOperator
     
     public void WriteFile(StoredFileInfo fileInfo, string fileName)
     {
+        _logger.LogDebug($"Writing a file: {fileName}");
         var filePath = CreateFilePath(fileName);
         Console.WriteLine(filePath);
         

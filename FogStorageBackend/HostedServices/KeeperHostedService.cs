@@ -13,12 +13,9 @@ namespace FogStorageBackend.HostedServices;
  */
 public class KeeperHostedService(
     ILogger<KeeperHostedService> logger,
-    IDbRepository repository,
     IShardOperator shardOperator)
     : BackgroundService
 {
-    private IDbRepository _repository = repository;
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -28,12 +25,11 @@ public class KeeperHostedService(
             logger.LogInformation("Keeper Hosted Service searches for forgotten shards");
             foreach (var shard in shardOperator.LoadAllShards())
             {
-                if (shard.ShardLastCheckTime < DateTime.UtcNow + TimeSpan.FromSeconds(StorageConstants.FileStorageTimeout))
-                {
+                if (shard.ShardLastCheckTime < DateTime.UtcNow + TimeSpan.FromSeconds(StorageConstants.FileStorageTimeout)) {
+                    // DELETION SHOULLD HAPPEN HERE (not necessary in MVP)
                     logger.LogDebug("(not) deleting file from file system. File public key: {pubkey}", shard.FilePublicKey);
                 }
-                else
-                {
+                else {
                     logger.LogDebug("100% not deleting file from file system. File public key: {pubkey}", shard.FilePublicKey);
                 }
             }

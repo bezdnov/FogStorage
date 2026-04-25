@@ -28,10 +28,12 @@ class Program
         ILogger<ShardOperator> logger1 = new Logger<ShardOperator>(factory);
         ILogger<WebSocketsCommunicator> logger2 = new Logger<WebSocketsCommunicator>(factory);
         ILogger<FileOperator> logger3 = new Logger<FileOperator>(factory);
+        ILogger<DbRepository> logger4 = new Logger<DbRepository>(factory);
         
         ShardOperator so = new ShardOperator(logger1, appSettings);
         FileOperator fo = new FileOperator(logger3, appSettings);
-        var communicator = new WebSocketsCommunicator(logger2, so, fo);
+        DbRepository dbRepository = new DbRepository(logger4);
+        var communicator = new WebSocketsCommunicator(logger2, so, fo, dbRepository);
         await communicator.Init();
         
         List<string> names = so.GetShardNames();
@@ -41,7 +43,7 @@ class Program
             await communicator.SendShard(shard);
         }
         */
-
+        
         var host = Host.CreateDefaultBuilder().ConfigureServices((context, services) =>
         {
             services.Configure<ApplicationGeneralSettings>(context.Configuration.GetSection("ApplicationGeneralSettings"));

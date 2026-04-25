@@ -16,11 +16,11 @@ public static class AesEncryptor
         return ms.ToArray();
     }
     
-    public static byte[] AesBytesDecrypt(byte[] cipherText, byte[] Key, byte[] IV)
+    public static byte[] AesBytesDecrypt(byte[] cipherText, byte[] key, byte[] iv)
     {
         using var aesAlg = Aes.Create();
-        aesAlg.Key = Key;
-        aesAlg.IV = IV;
+        aesAlg.Key = key;
+        aesAlg.IV = iv;
 
         using var decryptor = aesAlg.CreateDecryptor();
         using var ms = new MemoryStream(cipherText);

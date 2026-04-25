@@ -8,7 +8,6 @@ public static class RsaEncryptor
     {
         using var rsa = RSA.Create();
         
-        // ???
         var keyBytes = Convert.FromHexString(publicKey);
         rsa.ImportRSAPublicKey(keyBytes, out _);
         return rsa.Encrypt(inputBytes, RSAEncryptionPadding.OaepSHA256);

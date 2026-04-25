@@ -33,7 +33,7 @@ public class WebSocketsCommunicator
     }
 
     public async Task Init () {
-        _logger.LogInformation("creating socket");
+        _logger.LogInformation($"Initializing WebSockets, connecting to {WebConstants.ServerAddress}");
         var serverUri = new Uri($"http://{WebConstants.ServerAddress}:5000");
         // var serverUri = new Uri($"ws://127.0.0.1:5000");
 
@@ -44,12 +44,21 @@ public class WebSocketsCommunicator
             Auth = new Dictionary<string, int>
             {
                 ["client_kept"] = _shardOperator.CalculateShardWeight(),
-                ["client_saved"] = -1,
-            }
+                ["client_saved"] = _dbRepository.GetFileSizeSummary(),
+            },
+            ReconnectionAttempts = 2000,  // yes, it will be retrying for forever
         });
         
-        _socket.OnConnected += (sender, e) => _logger.LogInformation("Connected to server");
-        _socket.OnDisconnected += (sender, e) => _logger.LogInformation("Disconnected from server");
+        _socket.OnConnected += (sender, e) =>
+        {
+            _logger.LogInformation("Connected to server");
+            IsConnected = true;
+        };
+        _socket.OnDisconnected += (sender, e) =>
+        {
+            _logger.LogInformation("Disconnected from server");
+            IsConnected = false;
+        };
         _socket.OnPing += (sender, e) => _logger.LogDebug("Received ping from server");
         _socket.OnError += (sender, e) => _logger.LogError($"Error {e}");
         _socket.OnReconnectAttempt += (sender, e) => _logger.LogInformation($"Reconnect attempt: {e}");
@@ -58,49 +67,45 @@ public class WebSocketsCommunicator
         
         _socket.On("message", response =>
         {
-            _logger.LogInformation(response.RawText);
+            _logger.LogDebug(response.RawText);
             return Task.CompletedTask;
         });
         
         _socket.On("users_count", response =>
         {
-            _logger.LogInformation(response.RawText);
+            _logger.LogDebug(response.RawText);
             return Task.CompletedTask;
         });
         
-        // input: {"FilePublicKey": hex_string, "ShardIndex": int}
+        // input: {"FilePublicKey": hex_string, "ShardIndex": int}, second is optional
         _socket.On("has_shard", response =>
         {
-            _logger.LogDebug(response.RawText);
+            _logger.LogInformation("Checking shard existence request");
             
             var dict = response.GetValue<Dictionary<string, object>>(0);
 
-            if (dict != null && dict.TryGetValue("FilePublicKey", out var pubKey))
-            {
-                var publicKey = pubKey.ToString();
-                _logger.LogInformation($"{publicKey} <- this is the key that was received");
-                
-                _logger.LogDebug("has_shard: Sending Ack");
-                Console.WriteLine(publicKey != null && _shardOperator.HasShardWithPubkey(publicKey));
-                if (dict.TryGetValue("ShardIndex", out var shardIndex))
-                {
-                    response.SendAckDataAsync([
-                        publicKey != null && _shardOperator.HasShardWithPubkey(publicKey, (int)shardIndex)
-                    ]);
-                }
-                else
-                    response.SendAckDataAsync([publicKey != null && _shardOperator.HasShardWithPubkey(publicKey)]);
-            }
+            if (dict == null || !dict.TryGetValue("FilePublicKey", out var pubKey))
+                return Task.CompletedTask;
+
+            var publicKey = pubKey.ToString();
+            _logger.LogDebug($"{publicKey.AsSpan(0, 40)} <- this is the key that was received");
+            _logger.LogDebug($"has_shard: sending ack response {publicKey != null && _shardOperator.HasShardWithPubkey(publicKey)}");
             
+            if (dict.TryGetValue("ShardIndex", out var shardIndex))
+            {
+                response.SendAckDataAsync([
+                    publicKey != null && _shardOperator.HasShardWithPubkey(publicKey, (int)shardIndex)
+                ]);
+            }
+            else
+                response.SendAckDataAsync([publicKey != null && _shardOperator.HasShardWithPubkey(publicKey)]);
+        
             return Task.CompletedTask;
         });
         
         _socket.On("save_shard", response =>
         {
-            _logger.LogInformation(response.RawText);
-            Console.WriteLine(response.RawText);
-            
-            // var shardDict = response.GetValue<Dictionary<string, string>>(0);
+            _logger.LogInformation("Saving shard");
             var shard = response.GetValue<Shard>(0);
             
             if (shard != null) {
@@ -116,15 +121,13 @@ public class WebSocketsCommunicator
         
         _socket.On("save_shard_ack", response =>
         {
-            _logger.LogInformation("save_shard_ack");
-            _logger.LogInformation(response.RawText);
-            Console.WriteLine($"Received response from server on shard saving: {response.RawText}");
+            _logger.LogInformation("Shard was saved (received acknowledgement)");
             return Task.CompletedTask;
         });
         
         _socket.On("get_proof_bytes", response =>
         {
-            _logger.LogDebug("Get proof bytes request from server (file checkup stage 1/3)");
+            _logger.LogDebug("Get proof bytes request from server (file checkup stage 1/2)");
             var inputData = response.GetValue<Dictionary<string, string>>(0);
 
             if (inputData == null) return Task.CompletedTask;
@@ -134,25 +137,22 @@ public class WebSocketsCommunicator
 
             var shard = _shardOperator.LoadShardByPublicKey(publicKey);
             
-            if (shard != null) response.SendAckDataAsync([shard.ProofBytesUnencrypted]);
+            if (shard != null) response.SendAckDataAsync([shard.ProofBytesEncrypted, shard.ProofBytesUnencrypted]);
 
             return Task.CompletedTask;
         });
         
         _socket.On("check_proof_bytes", response =>
         {
-            _logger.LogDebug("Checking (decrypting) proof bytes request from server (file checkup stage 2/3)");
+            _logger.LogInformation("Checking (decrypting) proof bytes request from server (file checkup stage 2/2)");
             var inputData = response.GetValue<Dictionary<string, string>>(0);
-
             if (inputData == null) return Task.CompletedTask;
             
             inputData.TryGetValue("FilePublicKey", out var publicKey);
-            if (publicKey == null) return Task.CompletedTask;
             inputData.TryGetValue("ProofBytes", out var proofBytesUnencrypted);
-            if (proofBytesUnencrypted == null) return Task.CompletedTask;
+            if (publicKey == null || proofBytesUnencrypted == null) return Task.CompletedTask;
             
             _logger.LogDebug("This is how proof bytes look like on this stage {proofBytes}", proofBytesUnencrypted);
-
             try
             {
                 var proofBytesDecrypted = RsaEncryptor.RsaBytesDecrypt(Convert.FromBase64String(proofBytesUnencrypted),
@@ -168,7 +168,8 @@ public class WebSocketsCommunicator
 
             return Task.CompletedTask;
         });
-
+        
+        /* Deprecated way to proof ownership
         _socket.On("compare_proof_bytes", response =>
         {
             _logger.LogDebug("comparing received proof bytes with original (file checkup stage 3/3)");
@@ -190,6 +191,7 @@ public class WebSocketsCommunicator
 
             return Task.CompletedTask;
         });
+        */
         
         _socket.On("delete_file", response =>
         {
@@ -197,9 +199,9 @@ public class WebSocketsCommunicator
             
             var inputData = response.GetValue<Dictionary<string, string>>(0);
 
-            if (inputData != null && inputData.TryGetValue("FilePublicKey", out var pubKey))
+            if (inputData != null && inputData.TryGetValue("FilePublicKey", out var shardPublicKey))
             {
-                _shardOperator.DeleteShard(pubKey);
+                _shardOperator.DeleteShard(shardPublicKey);
             }
             return Task.CompletedTask;
         });
@@ -217,44 +219,47 @@ public class WebSocketsCommunicator
         });
     }
     
-    // TODO
-    public async Task GetShards(string publicKey)
+    public async Task<Shard[]> GetShards(string publicKey)
     {
+        var shards = new Shard[StorageConstants.ShardingFactor];
+        
         for (var i = 0; i < StorageConstants.ShardingFactor; ++i)
         {
             await _socket.EmitAsync("get_shard", [publicKey, i], ack =>
             {
-                try
+                var shard = ack.GetValue<Shard>(0);
+                if (shard == null)
                 {
-                    var shard = ack.GetValue<Shard>(0);
+                    _logger.LogWarning("Shard not found, or wrong response was received");
+                    return Task.CompletedTask;
                 }
-                catch (Exception e)
-                {
-                    _logger.LogError(e, e.Message);
-                    
-                }
-
+                shards[i] = shard;
                 return Task.CompletedTask;
             });
         }
+
+        return shards;
     }
     
-    // shallow deletion
     public async Task DeleteFile(string publicKey)
     {
-        // just emitting message, no more than that
-        await _socket.EmitAsync("delete_file", [JsonSerializer.Serialize(publicKey)], ack =>
-        {
-            return Task.CompletedTask;
-        });
-    }
-
-    public async Task CheckFileStatus(string publicKey)
-    {
-        await _socket.EmitAsync("check_file_status", [JsonSerializer.Serialize(publicKey)], ack =>
-        {
-            return Task.CompletedTask;
-        });
+        await _socket.EmitAsync("delete_file", [JsonSerializer.Serialize(publicKey)], ack => Task.CompletedTask);
     }
     
+    public async Task<int[]> CheckFileStatus(string publicKey)
+    {
+        var replicaAmount = new int[StorageConstants.ShardingFactor];
+        for (var i = 0; i < StorageConstants.ShardingFactor; ++i)
+        {
+            await _socket.EmitAsync("check_shard_status", [JsonSerializer.Serialize(publicKey)], ack =>
+            {
+                replicaAmount[i] = ack.GetValue<int>(0);
+                return Task.CompletedTask;
+            });
+            
+        }
+        return replicaAmount;
+    }
+
+    public bool IsConnected { get; private set; }
 }

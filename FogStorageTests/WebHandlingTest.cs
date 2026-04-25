@@ -6,7 +6,6 @@ public class WebHandlingTest
     [Fact]
     public void TestConnection()
     {
-        const string ServerAddress = "http://streamsm.beget.tech/";
         const string ServerPort = "5000";
         
         // here should be something ping from me and pong from server

@@ -50,11 +50,13 @@ public class ShardOperator: IShardOperator
     public Shard[] SplitFile(StoredFileInfo fileInfo)
     {
         _logger.LogInformation($"A file is being split");
+        /* MVP may i
         if (fileInfo.FileBytes.Length / 1024 < StorageConstants.MinimalFileSizeKb)
         {
             _logger.LogWarning($"Too small file; aborting");
             throw new Exception("File is too small");
         }
+        */
         
         byte[] encryptedFileBytes;
         
