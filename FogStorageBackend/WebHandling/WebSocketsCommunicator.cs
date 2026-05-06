@@ -10,6 +10,7 @@ using FogStorageBackend.Constants;
 using FogStorageBackend.Model;
 using FogStorageBackend.Repository;
 using FogStorageBackend.Utils;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SocketIOClient;
 using SocketIOClient.Common;
@@ -25,6 +26,10 @@ public class WebSocketsCommunicator
     
     public event EventHandler ConnectionChanged;
     public event EventHandler FileRestoredOrDeleted;
+
+    // This looks like insanely bad practice. I didn't find a way to do "blocking" calls from client to server
+    // for this reason this class contains a kind of buffer shard which is cleaned each time its accessed
+    private Shard? _previousReceivedShard;
 
     public WebSocketsCommunicator(ILogger<WebSocketsCommunicator> logger, IShardOperator shardOperator, IDbRepository dbRepository)
     {
@@ -48,6 +53,13 @@ public class WebSocketsCommunicator
                 ["client_saved"] = _dbRepository.GetFileSizeSummary(),
             },
             ReconnectionAttempts = 2000,  // yes, it will be retrying for forever
+        }, services =>
+        {
+            services.AddLogging(builder =>
+            {
+                builder.SetMinimumLevel(LogLevel.Debug);
+                builder.AddConsole();
+            });
         });
         
         _socket.OnConnected += (sender, e) =>
@@ -139,7 +151,7 @@ public class WebSocketsCommunicator
 
             if (!dict.TryGetValue("ShardIndex", out var shardI))
                 return Task.CompletedTask;
-            var shardIndex = (int)shardI;
+            var shardIndex = Convert.ToInt32(shardI.ToString());
 
             var shard = _shardOperator.LoadShardByPublicKey(publicKey);
             if (shard.ShardIndex != shardIndex)
@@ -147,7 +159,7 @@ public class WebSocketsCommunicator
             
             _logger.LogDebug($"give_shard: returning a shard");
 
-            response.SendAckDataAsync([shard]);
+            response.SendAckDataAsync([JsonSerializer.Serialize(shard)]);
 
             return Task.CompletedTask;
         });
@@ -197,7 +209,7 @@ public class WebSocketsCommunicator
                 var proofBytesDecrypted = RsaEncryptor.RsaBytesDecrypt(Convert.FromBase64String(proofBytesUnencrypted),
                     _dbRepository.GetPrivateKeyByPublicKey(publicKey));
                 
-                response.SendAckDataAsync([proofBytesDecrypted]);
+                response.SendAckDataAsync([Convert.ToBase64String(proofBytesDecrypted)]);
                 return Task.CompletedTask;
             }
             catch (CryptographicException e)
@@ -244,6 +256,42 @@ public class WebSocketsCommunicator
             }
             return Task.CompletedTask;
         });
+        
+        _socket.On("get_shard", response =>
+        {
+            _logger.LogInformation("Getting a shard from other client");
+
+            try
+            {
+                var shardJsonString = response.GetValue<string>(0);
+
+                if (shardJsonString == null)
+                {
+                    _logger.LogWarning("Something gone wrong getting shard json");
+                    _previousReceivedShard = Shard.NullShard;
+                    return Task.CompletedTask;
+                }
+
+                shardJsonString = shardJsonString.Trim('"');
+
+                var shard = JsonSerializer.Deserialize<Shard>(shardJsonString);
+                if (shard == null)
+                {
+                    _logger.LogWarning("Something gone wrong deserializing shard json");
+                    _previousReceivedShard = Shard.NullShard;
+                    return Task.CompletedTask;
+                }
+
+                _previousReceivedShard = shard;
+                return Task.CompletedTask;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error getting from shard server");
+            }
+            
+            return Task.CompletedTask;
+        });
 
         await _socket.ConnectAsync();
     }
@@ -271,33 +319,17 @@ public class WebSocketsCommunicator
                 Shard? result;
                 var tcs = new TaskCompletionSource<Shard?>();
 
-                await _socket.EmitAsync("get_shard", new object[] { publicKey, i }, ack =>
+                await _socket.EmitAsync("get_shard", [publicKey, i], ack => Task.CompletedTask);
+                
+                // bad loop
+                while (_previousReceivedShard == null)
                 {
-                    _logger.LogInformation($"get_shard: retrieving shard {i}");
+                    _logger.LogDebug("Waiting for a shard from server");
+                    await Task.Delay(1000);
+                }
 
-                    if (ack.RawText == "[]")
-                    {
-                        _logger.LogWarning($"Server couldn't get shard {i}");
-                        tcs.SetResult(null);
-                        return Task.CompletedTask;
-                    }
-
-                    try
-                    {
-                        var shardValue = ack.GetValue<string>(0);
-                        var shardObj = JsonSerializer.Deserialize<Shard>(shardValue);
-                        tcs.SetResult(shardObj);
-                    }
-                    catch (Exception e)
-                    {
-                        _logger.LogError(e, $"Error getting shard {i}");
-                        tcs.SetResult(null); // treat as missing
-                    }
-
-                    return Task.CompletedTask;
-                });
-
-                result = await tcs.Task;
+                result = _previousReceivedShard;
+                _previousReceivedShard = null;
                 return result;
             });
 

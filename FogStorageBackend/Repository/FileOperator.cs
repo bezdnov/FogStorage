@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using FogStorageBackend.Configuration;
 using FogStorageBackend.Model;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace FogStorageBackend.Repository;
 
@@ -16,15 +17,10 @@ public class FileOperator: IFileOperator
     private readonly ILogger<FileOperator> _logger;
     private readonly ApplicationGeneralSettings _appSettings;
 
-    public FileOperator(ILogger<FileOperator> logger, ApplicationGeneralSettings appSettings)
+    public FileOperator(ILogger<FileOperator> logger, IOptions<ApplicationGeneralSettings> appSettings)
     {
         _logger = logger;
-        _appSettings = appSettings;
-    }
-
-    public FileOperator()
-    {
-        _logger = new Logger<FileOperator>(new LoggerFactory());
+        _appSettings = appSettings.Value;
     }
     
     public StoredFileInfo ReadFile(string filePath)
@@ -63,7 +59,6 @@ public class FileOperator: IFileOperator
     {
         _logger.LogDebug($"Writing a file: {fileName}");
         var filePath = CreateFilePath(fileName);
-        Console.WriteLine(filePath);
         
         using (BinaryWriter bw = new BinaryWriter(File.Open(filePath, FileMode.Create)))
         {
@@ -73,6 +68,7 @@ public class FileOperator: IFileOperator
 
     private string CreateFilePath(string fileName)
     {
+        Thread.Sleep(15000);
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), _appSettings.DownloadFolder, fileName);
     }
 }

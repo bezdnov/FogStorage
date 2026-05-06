@@ -117,13 +117,6 @@ public class ShardOperator: IShardOperator
             if (shards[i].FilePublicKey != shards[0].FilePublicKey || shards[i].FileAESKeyEncrypted != shards[0].FileAESKeyEncrypted || shards[i].FileAESIV != shards[0].FileAESIV)
                 throw new ShardingMismatchException();
         }
-        _logger.LogInformation("Here it all fails!");
-        _logger.LogInformation($"{shards.Length}");
-        for (var i = 0; i < shards.Length; i++)
-        {
-            if (shards[i].ShardBytes == null)
-                _logger.LogError($"Shard {i} has null ShardBytes");
-        }
         var size = shards.Sum(shard => shard.ShardBytes.Length);
         
         Array.Sort(shards, (a, b) => a.ShardIndex.CompareTo(b.ShardIndex));
@@ -145,7 +138,7 @@ public class ShardOperator: IShardOperator
         {
             rsa.ImportRSAPrivateKey(Convert.FromHexString(filePrivateKey), out _);
             fileAesKey = rsa.Decrypt(Convert.FromHexString(shards[0].FileAESKeyEncrypted), RSAEncryptionPadding.OaepSHA256);
-            _logger.LogInformation($"Decrypted AES key: {fileAesKey}");
+            _logger.LogInformation($"Decrypted AES key: {Convert.ToHexString(fileAesKey)}");
         }
         
         var fileData = AesEncryptor.AesBytesDecrypt(fileDataEncrypted, fileAesKey, Convert.FromHexString(shards[0].FileAESIV));
@@ -158,7 +151,7 @@ public class ShardOperator: IShardOperator
             FileBytes = fileData,
             FilePublicKey = shards[0].FilePublicKey,
         };
-
+        
         return fileInfo;
     }
     
@@ -338,7 +331,7 @@ public class ShardOperator: IShardOperator
         }
         catch (ShardExistsException e)
         {
-            _logger.LogDebug("Update failed");
+            _logger.LogWarning("Update failed");
         }
     }
 }

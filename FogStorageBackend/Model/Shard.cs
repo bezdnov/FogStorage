@@ -21,4 +21,17 @@ public class Shard
     public DateTime ShardLastCheckTime {get; set;}  // time after which shard can be deleted
     
     public string MD5Checksum {get; set;}  // ALERT!!! nothing stops holder from redacting a file and replacing checksum with something else.
+    
+    public static Shard NullShard => new Shard()
+    {
+        FileAESKeyEncrypted = null,
+        FilePublicKey = null,
+        FileAESIV = null,
+        ShardIndex = -1,
+        ShardBytes = null,
+        ProofBytesUnencrypted = null,
+        ProofBytesEncrypted = null,
+        ShardLastCheckTime = DateTime.MinValue,
+        MD5Checksum = null
+    };
 }

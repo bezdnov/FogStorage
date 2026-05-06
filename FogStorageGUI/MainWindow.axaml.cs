@@ -89,6 +89,8 @@ public partial class MainWindow : Window
         
         _logger.LogInformation($"{shards.Length} shards were found in network");
         var file = _so.RecreateFile(shards, privateKey);
+        
+        _logger.LogInformation($"Using this as a filename: {filename}");
         _fileOperator.WriteFile(file, filename);
     }
 
