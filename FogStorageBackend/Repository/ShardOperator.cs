@@ -331,7 +331,15 @@ public class ShardOperator: IShardOperator
         if (shard == null) return;
         
         shard.ShardLastCheckTime = DateTime.Now;
-        SaveShard(shard);
+        try
+        {
+            DeleteShard(filePublicKey);
+            SaveShard(shard);
+        }
+        catch (ShardExistsException e)
+        {
+            _logger.LogDebug("Update failed");
+        }
     }
 }
 
