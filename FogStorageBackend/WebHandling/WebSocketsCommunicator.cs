@@ -176,7 +176,7 @@ public class WebSocketsCommunicator
 
             var shard = _shardOperator.LoadShardByPublicKey(publicKey);
             
-            if (shard != null) response.SendAckDataAsync([shard.ProofBytesEncrypted, shard.ProofBytesUnencrypted]);
+            if (shard != null) response.SendAckDataAsync([Convert.ToBase64String(shard.ProofBytesEncrypted), Convert.ToBase64String(shard.ProofBytesUnencrypted)]);
 
             return Task.CompletedTask;
         });

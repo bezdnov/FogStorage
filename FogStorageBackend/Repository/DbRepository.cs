@@ -46,7 +46,7 @@ public class DbRepository : IDbRepository
                     var privateKey = reader.GetString(0);
                     
                     keys.AddLast(privateKey);
-                    _logger.LogDebug($"Read key {privateKey}");
+                    _logger.LogDebug($"Read key {privateKey.AsSpan(0, 20)}");
                 }
             }
         }
@@ -71,7 +71,7 @@ public class DbRepository : IDbRepository
                     var publicKey = reader.GetString(0);
                     
                     keys.AddLast(publicKey);
-                    _logger.LogDebug($"Read key {publicKey}");
+                    _logger.LogDebug($"Read key {publicKey.AsSpan(0, 20)}");
                 }
             }
         }
