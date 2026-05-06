@@ -16,4 +16,5 @@ public interface IShardOperator
     public int CalculateShardWeight();
     public bool HasShardWithPubkey(string filePrivateKey, int shardIndex=-1);
     public Shard? LoadShardByPublicKey(string publicKey);
+    public void UpdateShard(string publicKey);
 }

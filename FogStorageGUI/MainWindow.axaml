@@ -12,23 +12,23 @@
         Title="FogStorage"
         WindowStartupLocation="CenterScreen"
         x:DataType="viewModels:MainWindowViewModel">
-        <Window.DataContext>
+        <!--<Window.DataContext>
                 <viewModels:MainWindowViewModel />
-        </Window.DataContext>
+        </Window.DataContext> -->
         
         <Border BorderBrush="Indigo" BorderThickness="5" Padding="40" Margin="20">
                 <StackPanel>
                         <TextBlock FontSize="48" HorizontalAlignment="Left" Margin="40" x:Name="AppName">Fog Storage</TextBlock>
-                        <Button Content="Save file" HorizontalContentAlignment="Center"  HorizontalAlignment="Center"
-                                Width="120" Click="OnSaveFile" Margin="10" IsEnabled="True"/> 
+                        <Button x:Name="SaveFileButton" Content="Save file" HorizontalContentAlignment="Center"  HorizontalAlignment="Center"
+                                Width="120" Click="OnSaveFile" Margin="10" IsEnabled="{Binding CanSaveFile}"/> 
                         
                         <ComboBox ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}" HorizontalAlignment="Center" HorizontalContentAlignment="Left"
                                   Width="300" Margin="20" PlaceholderText="Choose a file"></ComboBox>
                         
-                        <Button Content="Restore file" HorizontalContentAlignment="Center" HorizontalAlignment="Center"
-                                Width="120" Click="OnRestoreFile" Margin="50" IsEnabled="True" />
-                        <Button Content="Delete file" HorizontalContentAlignment="Center" HorizontalAlignment="Center"
-                                Width="120" Click="OnDeleteFile" Margin="50" IsEnabled="True" />
+                        <Button x:Name="RestoreFileButton" Content="Restore file" HorizontalContentAlignment="Center" HorizontalAlignment="Center"
+                                Width="120" Click="OnRestoreFile" Margin="50" IsEnabled="{Binding CanRestoreOrDelete}" />
+                        <Button x:Name="DeleteFileButton" Content="Delete file" HorizontalContentAlignment="Center" HorizontalAlignment="Center"
+                                Width="120" Click="OnDeleteFile" Margin="50" IsEnabled="{Binding CanRestoreOrDelete}" />
                 </StackPanel>
         </Border> 
 </Window>

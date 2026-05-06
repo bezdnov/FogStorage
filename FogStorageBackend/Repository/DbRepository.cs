@@ -107,6 +107,7 @@ public class DbRepository : IDbRepository
         using var connection = new SqliteConnection(CreateConnectionString());
         connection.Open();
         var getFilenamesCmd = connection.CreateCommand();
+        getFilenamesCmd.CommandText = SqliteConstants.GetFilenames;
         using (var reader = getFilenamesCmd.ExecuteReader())
         {
             while (reader.Read())
@@ -172,6 +173,18 @@ public class DbRepository : IDbRepository
         }
 
         return string.Empty;
+    }
+
+    public void DeleteByPublicKey(string publicKey)
+    {
+        using var connection = new SqliteConnection(CreateConnectionString());
+        connection.Open();
+        var deleteByPublicKeyCmd = connection.CreateCommand();
+        deleteByPublicKeyCmd.CommandText = SqliteConstants.DeleteByPublicKey;
+        deleteByPublicKeyCmd.Parameters.AddWithValue("@publicKey", publicKey);
+        
+        var res = deleteByPublicKeyCmd.ExecuteNonQuery();
+        _logger.LogDebug($"Deletion returned {res}");
     }
 
     private static string CreateConnectionString()

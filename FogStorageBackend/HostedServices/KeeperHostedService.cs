@@ -26,7 +26,7 @@ public class KeeperHostedService(
             foreach (var shard in shardOperator.LoadAllShards())
             {
                 if (shard.ShardLastCheckTime < DateTime.UtcNow + TimeSpan.FromSeconds(StorageConstants.FileStorageTimeout)) {
-                    // DELETION SHOULLD HAPPEN HERE (not necessary in MVP)
+                    // DELETION SHOULD HAPPEN HERE (not necessary in MVP)
                     logger.LogDebug("(not) deleting file from file system. File public key: {pubkey}", shard.FilePublicKey);
                 }
                 else {

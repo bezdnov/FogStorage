@@ -8,7 +8,8 @@ public static class SqliteConstants
             Filename TEXT NOT NULL,
             PrivateKey TEXT NOT NULL, 
             PublicKey TEXT NOT NULL,
-            FileSize INTEGER NOT NULL
+            FileSize INTEGER NOT NULL,
+            LastCheck DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     );";
     
     public const string ReadTable = @"SELECT * FROM FileData;";
@@ -18,9 +19,10 @@ public static class SqliteConstants
     public const string GetPublicKeyByFilename = @"SELECT PublicKey FROM FileData WHERE Filename = @filename;";
     public const string GetFilenames = @"SELECT Filename FROM FileData;";
     public const string GetFileSizeSummary = @"SELECT COALESCE(SUM(FileSize), 0) FROM FileData;";
+    public const string DeleteByPublicKey = @"DELETE FROM FileData WHERE PublicKey = @publicKey;";
 
     public const string InsertFileData = @"INSERT INTO FileData (Filename, PrivateKey, PublicKey, FileSize)
       VALUES (@filename, @privateKey, @publicKey, @fileSize);";
-
+    
     public const string DbName = "files.db";
 }

@@ -81,6 +81,13 @@ public partial class MainWindow : Window
         var privateKey = _dbRepo.GetPrivateKeyByPublicKey(publicKey);
         
         var shards = await _communicator.GetShards(publicKey);
+        if (shards is null || shards.Length == 0)
+        {
+            _logger.LogWarning("No shards were found in network; file restore failed");
+            return;
+        }
+        
+        _logger.LogInformation($"{shards.Length} shards were found in network");
         var file = _so.RecreateFile(shards, privateKey);
         _fileOperator.WriteFile(file, filename);
     }

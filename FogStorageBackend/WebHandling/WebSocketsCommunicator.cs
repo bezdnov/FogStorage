@@ -19,15 +19,16 @@ namespace FogStorageBackend.WebHandling;
 public class WebSocketsCommunicator
 {
     private SocketIO _socket;
-    private IShardOperator _shardOperator;
-    private IFileOperator _fileOperator;
-    private ILogger _logger;
-    private IDbRepository _dbRepository;
+    private readonly IShardOperator _shardOperator;
+    private readonly ILogger _logger;
+    private readonly IDbRepository _dbRepository;
+    
+    public event EventHandler ConnectionChanged;
+    public event EventHandler FileRestoredOrDeleted;
 
-    public WebSocketsCommunicator(ILogger<WebSocketsCommunicator> logger, IShardOperator shardOperator, IFileOperator fileOperator, IDbRepository dbRepository)
+    public WebSocketsCommunicator(ILogger<WebSocketsCommunicator> logger, IShardOperator shardOperator, IDbRepository dbRepository)
     {
         _shardOperator = shardOperator;
-        _fileOperator = fileOperator;
         _logger = logger;
         _dbRepository = dbRepository;
     }
@@ -53,11 +54,13 @@ public class WebSocketsCommunicator
         {
             _logger.LogInformation("Connected to server");
             IsConnected = true;
+            ConnectionChanged?.Invoke(this, EventArgs.Empty);
         };
         _socket.OnDisconnected += (sender, e) =>
         {
-            _logger.LogInformation("Disconnected from server");
+            _logger.LogWarning("Disconnected from server");
             IsConnected = false;
+            ConnectionChanged?.Invoke(this, EventArgs.Empty);
         };
         _socket.OnPing += (sender, e) => _logger.LogDebug("Received ping from server");
         _socket.OnError += (sender, e) => _logger.LogError($"Error {e}");
@@ -86,19 +89,23 @@ public class WebSocketsCommunicator
 
             if (dict == null || !dict.TryGetValue("FilePublicKey", out var pubKey))
                 return Task.CompletedTask;
-
-            var publicKey = pubKey.ToString();
+            
+            // WebSockets return strings with " at start and end
+            var publicKey = pubKey.ToString().Trim('"');
+            
             _logger.LogDebug($"{publicKey.AsSpan(0, 40)} <- this is the key that was received");
-            _logger.LogDebug($"has_shard: sending ack response {publicKey != null && _shardOperator.HasShardWithPubkey(publicKey)}");
+            
+            _shardOperator.UpdateShard(publicKey);
             
             if (dict.TryGetValue("ShardIndex", out var shardIndex))
             {
-                response.SendAckDataAsync([
-                    publicKey != null && _shardOperator.HasShardWithPubkey(publicKey, (int)shardIndex)
-                ]);
+                _logger.LogDebug($"has_shard: working with index {Convert.ToInt32(shardIndex.ToString())}");
+                bool result = _shardOperator.HasShardWithPubkey(publicKey, Convert.ToInt32(shardIndex.ToString()));
+                _logger.LogDebug($"has_shard: {result}");
+                response.SendAckDataAsync([result]);
             }
             else
-                response.SendAckDataAsync([publicKey != null && _shardOperator.HasShardWithPubkey(publicKey)]);
+                response.SendAckDataAsync([_shardOperator.HasShardWithPubkey(publicKey)]);
         
             return Task.CompletedTask;
         });
@@ -119,9 +126,41 @@ public class WebSocketsCommunicator
             return Task.CompletedTask;
         });
         
+        _socket.On("give_shard", response =>
+        {
+            _logger.LogInformation("Server requested shard");
+            var dict = response.GetValue<Dictionary<string, object>>(0);
+
+            if (dict == null || !dict.TryGetValue("FilePublicKey", out var pubKey))
+                return Task.CompletedTask;
+            
+            // WebSockets return strings with " at start and end
+            var publicKey = pubKey.ToString().Trim('"');
+
+            if (!dict.TryGetValue("ShardIndex", out var shardI))
+                return Task.CompletedTask;
+            var shardIndex = (int)shardI;
+
+            var shard = _shardOperator.LoadShardByPublicKey(publicKey);
+            if (shard.ShardIndex != shardIndex)
+                _logger.LogWarning("Returning a shard with incorrect shard index");
+            
+            _logger.LogDebug($"give_shard: returning a shard");
+
+            response.SendAckDataAsync([shard]);
+
+            return Task.CompletedTask;
+        });
+        
         _socket.On("save_shard_ack", response =>
         {
             _logger.LogInformation("Shard was saved (received acknowledgement)");
+            return Task.CompletedTask;
+        });
+        
+        _socket.On("get_shard_ack", response =>
+        {
+            _logger.LogInformation($"get_shard_ack: {response.RawText}");
             return Task.CompletedTask;
         });
         
@@ -219,46 +258,83 @@ public class WebSocketsCommunicator
         });
     }
     
-    public async Task<Shard[]> GetShards(string publicKey)
+    public async Task<Shard[]?> GetShards(string publicKey)
     {
+        _logger.LogDebug("Getting shards");
         var shards = new Shard[StorageConstants.ShardingFactor];
-        
+
         for (var i = 0; i < StorageConstants.ShardingFactor; ++i)
         {
-            await _socket.EmitAsync("get_shard", [publicKey, i], ack =>
+            // Convert callback to Task
+            var shard = await Task.Run<Shard?>(async () =>
             {
-                var shard = ack.GetValue<Shard>(0);
-                if (shard == null)
+                Shard? result;
+                var tcs = new TaskCompletionSource<Shard?>();
+
+                await _socket.EmitAsync("get_shard", new object[] { publicKey, i }, ack =>
                 {
-                    _logger.LogWarning("Shard not found, or wrong response was received");
+                    _logger.LogInformation($"get_shard: retrieving shard {i}");
+
+                    if (ack.RawText == "[]")
+                    {
+                        _logger.LogWarning($"Server couldn't get shard {i}");
+                        tcs.SetResult(null);
+                        return Task.CompletedTask;
+                    }
+
+                    try
+                    {
+                        var shardValue = ack.GetValue<string>(0);
+                        var shardObj = JsonSerializer.Deserialize<Shard>(shardValue);
+                        tcs.SetResult(shardObj);
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError(e, $"Error getting shard {i}");
+                        tcs.SetResult(null); // treat as missing
+                    }
+
                     return Task.CompletedTask;
-                }
-                shards[i] = shard;
-                return Task.CompletedTask;
+                });
+
+                result = await tcs.Task;
+                return result;
             });
+
+            if (shard == null)
+            {
+                _logger.LogWarning("One of the shards was missing. Returning null.");
+                return null;
+            }
+
+            shards[i] = shard;
         }
 
+        _logger.LogDebug("Got all shards");
         return shards;
     }
     
     public async Task DeleteFile(string publicKey)
     {
+        _dbRepository.DeleteByPublicKey(publicKey);
+        FileRestoredOrDeleted?.Invoke(this, EventArgs.Empty);
+        // deleting file from db here
         await _socket.EmitAsync("delete_file", [JsonSerializer.Serialize(publicKey)], ack => Task.CompletedTask);
     }
     
-    public async Task<int[]> CheckFileStatus(string publicKey)
+    public async Task CheckFileStatus(string publicKey)
     {
-        var replicaAmount = new int[StorageConstants.ShardingFactor];
+        // var replicaAmount = new int[StorageConstants.ShardingFactor];
         for (var i = 0; i < StorageConstants.ShardingFactor; ++i)
         {
-            await _socket.EmitAsync("check_shard_status", [JsonSerializer.Serialize(publicKey)], ack =>
+            await _socket.EmitAsync("check_file", [JsonSerializer.Serialize(publicKey)], ack =>
             {
-                replicaAmount[i] = ack.GetValue<int>(0);
+                // replicaAmount[i] = ack.GetValue<int>(0);
                 return Task.CompletedTask;
             });
             
         }
-        return replicaAmount;
+        // return replicaAmount;
     }
 
     public bool IsConnected { get; private set; }

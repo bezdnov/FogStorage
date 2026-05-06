@@ -49,7 +49,7 @@ public class ShardOperator: IShardOperator
     // IV is one for the whole file, and its ok
     public Shard[] SplitFile(StoredFileInfo fileInfo)
     {
-        _logger.LogInformation($"A file is being split");
+        _logger.LogInformation($"Splitting a file: {fileInfo.FilePublicKey.AsSpan(0, 40)}");
         /* MVP may i
         if (fileInfo.FileBytes.Length / 1024 < StorageConstants.MinimalFileSizeKb)
         {
@@ -117,7 +117,13 @@ public class ShardOperator: IShardOperator
             if (shards[i].FilePublicKey != shards[0].FilePublicKey || shards[i].FileAESKeyEncrypted != shards[0].FileAESKeyEncrypted || shards[i].FileAESIV != shards[0].FileAESIV)
                 throw new ShardingMismatchException();
         }
-
+        _logger.LogInformation("Here it all fails!");
+        _logger.LogInformation($"{shards.Length}");
+        for (var i = 0; i < shards.Length; i++)
+        {
+            if (shards[i].ShardBytes == null)
+                _logger.LogError($"Shard {i} has null ShardBytes");
+        }
         var size = shards.Sum(shard => shard.ShardBytes.Length);
         
         Array.Sort(shards, (a, b) => a.ShardIndex.CompareTo(b.ShardIndex));
@@ -298,7 +304,7 @@ public class ShardOperator: IShardOperator
     
     private static string CreateShardName(string filePublicKey, int shardIndex)
     {
-        return string.Concat("shard-", filePublicKey.AsSpan(0, 16), "-", Convert.ToString(shardIndex));
+        return string.Concat("shard-", filePublicKey.AsSpan(0, 32), "-", Convert.ToString(shardIndex));
     }
     
 
@@ -315,6 +321,17 @@ public class ShardOperator: IShardOperator
         }
 
         return false;
+    }
+
+    public void UpdateShard(string filePublicKey)
+    {
+        _logger.LogDebug($"Updating shard with public key {filePublicKey.AsSpan(0, 20)}");
+        
+        var shard = LoadShardByPublicKey(filePublicKey);
+        if (shard == null) return;
+        
+        shard.ShardLastCheckTime = DateTime.Now;
+        SaveShard(shard);
     }
 }
 

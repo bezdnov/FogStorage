@@ -9,4 +9,6 @@ public interface IDbRepository
     public string[] GetFilenames();
     public int GetFileSizeSummary();
     public void SaveFileData(string filename, string privateKey, string publicKey, int cumulativeShardSize);
+    public void DeleteByPublicKey(string publicKey);
+    
 }
