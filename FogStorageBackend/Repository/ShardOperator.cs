@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Runtime.Serialization;
 using FogStorageBackend.Configuration;
 using FogStorageBackend.Model;
@@ -17,46 +16,31 @@ namespace FogStorageBackend.Repository;
  * A repository class for FogStorage
  *
  * Gives opportunity to Hosted services to work with shards: this class does all the work related to them.
- * Default shard folder is:
+ * Default shard folder is DownloadFolder in appsettings.json file
  * 
  */
-public class ShardOperator: IShardOperator
+public class ShardOperator(ILogger<ShardOperator> logger, IOptions<ApplicationGeneralSettings> appSettings)
+    : IShardOperator
 {
-    private readonly ApplicationGeneralSettings _appSettings;
-    private readonly ILogger _logger;
+    private readonly ApplicationGeneralSettings _appSettings = appSettings.Value;
+    private readonly ILogger _logger = logger;
     
-    private JsonSerializerOptions _jsonSerializerOptions;
-    
-    public ShardOperator(ILogger<ShardOperator> logger, IOptions<ApplicationGeneralSettings> appSettings)
+    private readonly JsonSerializerOptions _jsonSerializerOptions = new()
     {
-        _appSettings = appSettings.Value;
-        _logger = logger;
+        IncludeFields = true,
+        PropertyNameCaseInsensitive = false,
+    };
 
-        _jsonSerializerOptions = new JsonSerializerOptions()
-        {
-            IncludeFields = true,
-            PropertyNameCaseInsensitive = false,
-        };
-    }
-
-    public ShardOperator(ILogger<ShardOperator> logger, ApplicationGeneralSettings appSettings)
-    {
-        _logger = logger;
-        _appSettings = appSettings;
-    }
-    
     // Its important that shardId's are dependent of fileIds
-    // IV is one for the whole file, and its ok
+    // IV is one for the whole file, and it's ok
     public Shard[] SplitFile(StoredFileInfo fileInfo)
     {
         _logger.LogInformation($"Splitting a file: {fileInfo.FilePublicKey.AsSpan(0, 40)}");
-        /* MVP may i
-        if (fileInfo.FileBytes.Length / 1024 < StorageConstants.MinimalFileSizeKb)
+        if (fileInfo.FileBytes.Length / 1024 < StorageConstants.MinimalFileSizeKb || fileInfo.FileBytes.Length / 1024 > StorageConstants.MaximalFileSizeKb)
         {
             _logger.LogWarning($"Too small file; aborting");
             throw new Exception("File is too small");
         }
-        */
         
         byte[] encryptedFileBytes;
         
@@ -238,7 +222,7 @@ public class ShardOperator: IShardOperator
         var shardFolder = Path.Combine(_appSettings.ApplicationDefaultFolder, _appSettings.ShardFolderName);
         var shardPath = Path.Combine(shardFolder, shardName);
 
-        Shard shard;
+        Shard? shard;
 
         try
         {
@@ -247,7 +231,7 @@ public class ShardOperator: IShardOperator
         }
         catch (SerializationException ex)
         {
-            _logger.LogWarning("Couldn't deserialize {shardName}", shardName);
+            _logger.LogWarning(ex, "Couldn't deserialize {shardName}", shardName);
             return null;
         }
         return shard;
@@ -291,9 +275,6 @@ public class ShardOperator: IShardOperator
     
     // Standard way to create shard name. Only one shard of 1 file is used in real world
     private static string CreateShardName(Shard shard) => CreateShardName(shard.FilePublicKey, shard.ShardIndex);
-    // {
-    // return string.Concat("shard-", shard.FilePublicKey.AsSpan(0, 16), "-", Convert.ToString(shard.ShardIndex));
-    // }
     
     private static string CreateShardName(string filePublicKey, int shardIndex)
     {
@@ -308,7 +289,6 @@ public class ShardOperator: IShardOperator
         _logger.LogDebug($"Checking if shard with public key (first 10 bytes) {publicKey.AsSpan(0, 20)} exists");
         foreach (var shard in LoadAllShards())
         {
-            // Console.WriteLine(shard.FilePublicKey);
             if (publicKey == shard.FilePublicKey && (shardIndex == -1 || shard.ShardIndex == shardIndex))
                 return true;
         }
@@ -326,12 +306,14 @@ public class ShardOperator: IShardOperator
         shard.ShardLastCheckTime = DateTime.Now;
         try
         {
+            // These 2 lines of code look quite scary (because they are). 
             DeleteShard(filePublicKey);
             SaveShard(shard);
+            _logger.LogInformation($"Update of shard with public key {filePublicKey.AsSpan(0, 20)} succeeded");
         }
         catch (ShardExistsException e)
         {
-            _logger.LogWarning("Update failed");
+            _logger.LogWarning(e, "Update failed");
         }
     }
 }

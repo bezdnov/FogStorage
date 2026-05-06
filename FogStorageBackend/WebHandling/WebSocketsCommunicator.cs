@@ -1,11 +1,5 @@
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Net.WebSockets;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
-using FogStorageBackend.Configuration;
 using FogStorageBackend.Constants;
 using FogStorageBackend.Model;
 using FogStorageBackend.Repository;
@@ -24,8 +18,8 @@ public class WebSocketsCommunicator
     private readonly ILogger _logger;
     private readonly IDbRepository _dbRepository;
     
-    public event EventHandler ConnectionChanged;
-    public event EventHandler FileRestoredOrDeleted;
+    public event EventHandler? ConnectionChanged;
+    public event EventHandler? FileRestoredOrDeleted;
 
     // This looks like insanely bad practice. I didn't find a way to do "blocking" calls from client to server
     // for this reason this class contains a kind of buffer shard which is cleaned each time its accessed
@@ -57,32 +51,32 @@ public class WebSocketsCommunicator
         {
             services.AddLogging(builder =>
             {
-                builder.SetMinimumLevel(LogLevel.Debug);
+                builder.SetMinimumLevel(LogLevel.Information);
                 builder.AddConsole();
             });
         });
         
-        _socket.OnConnected += (sender, e) =>
+        _socket.OnConnected += (_, _) =>
         {
             _logger.LogInformation("Connected to server");
             IsConnected = true;
             ConnectionChanged?.Invoke(this, EventArgs.Empty);
         };
-        _socket.OnDisconnected += (sender, e) =>
+        _socket.OnDisconnected += (_, _) =>
         {
             _logger.LogWarning("Disconnected from server");
             IsConnected = false;
             ConnectionChanged?.Invoke(this, EventArgs.Empty);
         };
-        _socket.OnPing += (sender, e) => _logger.LogDebug("Received ping from server");
-        _socket.OnError += (sender, e) => _logger.LogError($"Error {e}");
-        _socket.OnReconnectAttempt += (sender, e) => _logger.LogInformation($"Reconnect attempt: {e}");
-        _socket.OnReconnectError += (sender, e) => _logger.LogWarning($"Reconnected error: {e.Message}");
+        _socket.OnPing += (_, _) => _logger.LogDebug("Received ping from server");
+        _socket.OnError += (_, e) => _logger.LogError($"Error {e}");
+        _socket.OnReconnectAttempt += (_, e) => _logger.LogInformation($"Reconnect attempt: {e}");
+        _socket.OnReconnectError += (_, e) => _logger.LogWarning($"Reconnected error: {e.Message}");
         
         
         _socket.On("message", response =>
         {
-            _logger.LogDebug(response.RawText);
+            _logger.LogDebug($"Message was received : {response.RawText}");
             return Task.CompletedTask;
         });
         
@@ -102,17 +96,22 @@ public class WebSocketsCommunicator
             if (dict == null || !dict.TryGetValue("FilePublicKey", out var pubKey))
                 return Task.CompletedTask;
             
-            // WebSockets return strings with " at start and end
-            var publicKey = pubKey.ToString().Trim('"');
+            // WebSockets return strings with " at start and end for a reason unknown to me
+            var publicKey = pubKey.ToString()?.Trim('"');
             
             _logger.LogDebug($"{publicKey.AsSpan(0, 40)} <- this is the key that was received");
+
+            if (publicKey == null) {
+                _logger.LogWarning("has_shard: No publicKey was received or it wasn't correct");
+                return Task.CompletedTask;
+            }
             
             _shardOperator.UpdateShard(publicKey);
             
             if (dict.TryGetValue("ShardIndex", out var shardIndex))
             {
                 _logger.LogDebug($"has_shard: working with index {Convert.ToInt32(shardIndex.ToString())}");
-                bool result = _shardOperator.HasShardWithPubkey(publicKey, Convert.ToInt32(shardIndex.ToString()));
+                var result = _shardOperator.HasShardWithPubkey(publicKey, Convert.ToInt32(shardIndex.ToString()));
                 _logger.LogDebug($"has_shard: {result}");
                 response.SendAckDataAsync([result]);
             }
@@ -147,13 +146,25 @@ public class WebSocketsCommunicator
                 return Task.CompletedTask;
             
             // WebSockets return strings with " at start and end
-            var publicKey = pubKey.ToString().Trim('"');
+
+            var publicKey = pubKey.ToString()?.Trim('"');
 
             if (!dict.TryGetValue("ShardIndex", out var shardI))
                 return Task.CompletedTask;
             var shardIndex = Convert.ToInt32(shardI.ToString());
 
+            if (publicKey is null)
+            {
+                _logger.LogWarning("Public key wasn't received from server");
+                return Task.CompletedTask;
+            }
+
             var shard = _shardOperator.LoadShardByPublicKey(publicKey);
+            if (shard is null) {
+                _logger.LogWarning($"Could not load shard by public key {publicKey.AsSpan(0, 20)}");
+                return Task.CompletedTask;
+            }
+            
             if (shard.ShardIndex != shardIndex)
                 _logger.LogWarning("Returning a shard with incorrect shard index");
             
@@ -164,7 +175,7 @@ public class WebSocketsCommunicator
             return Task.CompletedTask;
         });
         
-        _socket.On("save_shard_ack", response =>
+        _socket.On("save_shard_ack", _ =>
         {
             _logger.LogInformation("Shard was saved (received acknowledgement)");
             return Task.CompletedTask;
@@ -219,30 +230,6 @@ public class WebSocketsCommunicator
 
             return Task.CompletedTask;
         });
-        
-        /* Deprecated way to proof ownership
-        _socket.On("compare_proof_bytes", response =>
-        {
-            _logger.LogDebug("comparing received proof bytes with original (file checkup stage 3/3)");
-            var inputData = response.GetValue<Dictionary<string, string>>(0);
-
-            if (inputData == null) return Task.CompletedTask;
-            
-            inputData.TryGetValue("FilePublicKey", out var publicKey);
-            if (publicKey == null) return Task.CompletedTask;
-            inputData.TryGetValue("ProofBytesDecrypted", out var proofBytesDecrypted);
-            if (proofBytesDecrypted == null) return Task.CompletedTask;
-
-            var shard = _shardOperator.LoadShardByPublicKey(publicKey);
-            if (shard == null) return Task.CompletedTask;
-            
-            _logger.LogDebug("Comparing these proof bytes: {proofBytes} with these {shardProofBytes}", proofBytesDecrypted, shard.ProofBytesEncrypted);
-            
-            response.SendAckDataAsync([Convert.FromBase64String(proofBytesDecrypted) == shard.ProofBytesEncrypted]);
-
-            return Task.CompletedTask;
-        });
-        */
         
         _socket.On("delete_file", response =>
         {
@@ -316,19 +303,20 @@ public class WebSocketsCommunicator
             // Convert callback to Task
             var shard = await Task.Run<Shard?>(async () =>
             {
-                Shard? result;
-                var tcs = new TaskCompletionSource<Shard?>();
-
-                await _socket.EmitAsync("get_shard", [publicKey, i], ack => Task.CompletedTask);
+                await _socket.EmitAsync("get_shard", [publicKey, i], _ => Task.CompletedTask);
                 
-                // bad loop
+                // bad practice: for unknown reason, this client doesn't response with
+                // data in ack variable in upper string. For this reason, a separate get_shard "route" in Init method
+                // was programmed
+                
+                // role for this cycle is to block until response.
                 while (_previousReceivedShard == null)
                 {
                     _logger.LogDebug("Waiting for a shard from server");
                     await Task.Delay(1000);
                 }
 
-                result = _previousReceivedShard;
+                var result = _previousReceivedShard;
                 _previousReceivedShard = null;
                 return result;
             });
@@ -336,6 +324,11 @@ public class WebSocketsCommunicator
             if (shard == null)
             {
                 _logger.LogWarning("One of the shards was missing. Returning null.");
+                return null;
+            } 
+            if (shard == Shard.NullShard)
+            {
+                _logger.LogWarning("Wrong response from server was received, or other problem occured");
                 return null;
             }
 
@@ -351,22 +344,15 @@ public class WebSocketsCommunicator
         _dbRepository.DeleteByPublicKey(publicKey);
         FileRestoredOrDeleted?.Invoke(this, EventArgs.Empty);
         // deleting file from db here
-        await _socket.EmitAsync("delete_file", [JsonSerializer.Serialize(publicKey)], ack => Task.CompletedTask);
+        await _socket.EmitAsync("delete_file", [JsonSerializer.Serialize(publicKey)], _ => Task.CompletedTask);
     }
     
     public async Task CheckFileStatus(string publicKey)
     {
-        // var replicaAmount = new int[StorageConstants.ShardingFactor];
         for (var i = 0; i < StorageConstants.ShardingFactor; ++i)
         {
-            await _socket.EmitAsync("check_file", [JsonSerializer.Serialize(publicKey)], ack =>
-            {
-                // replicaAmount[i] = ack.GetValue<int>(0);
-                return Task.CompletedTask;
-            });
-            
+            await _socket.EmitAsync("check_file", [JsonSerializer.Serialize(publicKey)], _ => Task.CompletedTask);
         }
-        // return replicaAmount;
     }
 
     public bool IsConnected { get; private set; }

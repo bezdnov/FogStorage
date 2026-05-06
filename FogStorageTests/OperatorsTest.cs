@@ -30,7 +30,9 @@ public class OperatorsTest
             DbFolderName = tempDir,
         };
 
-        FileOperator fo = new FileOperator(logger, appSettings);
+        var options = Options.Create(appSettings);
+
+        FileOperator fo = new FileOperator(logger, options);
         StoredFileInfo info = fo.ReadFile(filePath);
 
         Assert.NotNull(info.FilePublicKey);
@@ -56,22 +58,26 @@ public class OperatorsTest
         Logger<ShardOperator> logger1 = new Logger<ShardOperator>(new LoggerFactory());
         Logger<FileOperator> logger2 = new Logger<FileOperator>(new LoggerFactory());
         
-        FileOperator fo = new FileOperator(logger2, appSettings);
+        var options = Options.Create(appSettings);
+        
+        FileOperator fo = new FileOperator(logger2, options);
         
         string filePath = Path.Combine(tmpFolder, filename);
         File.WriteAllText(filePath, fileContent);
         StoredFileInfo info = fo.ReadFile(filePath);
         
-        ShardOperator so = new ShardOperator(logger1, appSettings);
+        ShardOperator so = new ShardOperator(logger1, options);
         Shard[] shards = so.SplitFile(info);
 
         // data, that should be the same in file and each shard, stays the same
-        for (var i = 0; i < shards.Length; ++i)
+        foreach (var shard in shards)
         {
-            Assert.Equal(shards[i].FilePublicKey, info.FilePublicKey);
+            Assert.Equal(shard.FilePublicKey, info.FilePublicKey);
             // Assert.Equal(shards[i].FileAESIV, info.FileAESIV);
         }
 
         var file = so.RecreateFile(shards, info.FilePrivateKey);
+        Assert.Equal(file.FilePublicKey, shards[0].FilePublicKey);
+        Assert.Equal(Convert.ToString(file.FileBytes), fileContent);
     }
 }

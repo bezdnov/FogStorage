@@ -20,13 +20,13 @@ public class MainWindowViewModel : ObservableObject, INotifyPropertyChanged
         _webSockets = Program.AppHost.Services.GetRequiredService<WebSocketsCommunicator>();
         _logger = Program.AppHost.Services.GetRequiredService<ILogger<MainWindowViewModel>>();
 
-        _webSockets.ConnectionChanged += (sender, args) =>
+        _webSockets.ConnectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(CanSaveFile));
             OnPropertyChanged(nameof(CanRestoreOrDelete));
         };
 
-        _webSockets.FileRestoredOrDeleted += (sender, args) =>
+        _webSockets.FileRestoredOrDeleted += (_, _) =>
         {
             OnPropertyChanged(nameof(CanRestoreOrDelete));
         };
@@ -48,19 +48,6 @@ public class MainWindowViewModel : ObservableObject, INotifyPropertyChanged
 
     public string[] Files => _dbRepository.GetFilenames();
 
-    public bool CanSaveFile
-    {
-        get
-        {
-            return _webSockets.IsConnected;
-        }
-    }
-
-    public bool CanRestoreOrDelete
-    {
-        get
-        {
-            return _webSockets.IsConnected && SelectedItem != string.Empty;
-        }
-    }
+    public bool CanSaveFile => _webSockets.IsConnected;
+    public bool CanRestoreOrDelete => _webSockets.IsConnected && SelectedItem != string.Empty;
 }

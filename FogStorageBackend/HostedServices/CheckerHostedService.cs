@@ -1,6 +1,4 @@
-using FogStorageBackend.Configuration;
 using FogStorageBackend.Constants;
-using FogStorageBackend.Model;
 using FogStorageBackend.Repository;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -32,13 +30,6 @@ public class CheckerHostedService(
             // await Task.WhenAll(tasks);
             foreach (var publicKey in publicKeys)
             {
-                /*
-                var result = await webSocketsCommunicator.CheckFileStatus(publicKey);
-                if (result != null)
-                {
-                    logger.LogInformation($"Shards and their availability: {string.Join(' ', result)}");
-                }
-                */
                 await webSocketsCommunicator.CheckFileStatus(publicKey);
             }
             logger.LogInformation("Checking shards completed; waiting some time...");

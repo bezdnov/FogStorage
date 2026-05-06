@@ -12,20 +12,14 @@ namespace FogStorageBackend.Repository;
  * File is stored unencrypted in RAM, and encryption is done during sharding, decryption - during restoring
  * The only cryptography done here is generation of RSA keypair
  */
-public class FileOperator: IFileOperator
+public class FileOperator(ILogger<FileOperator> logger, IOptions<ApplicationGeneralSettings> appSettings)
+    : IFileOperator
 {
-    private readonly ILogger<FileOperator> _logger;
-    private readonly ApplicationGeneralSettings _appSettings;
+    private readonly ApplicationGeneralSettings _appSettings = appSettings.Value;
 
-    public FileOperator(ILogger<FileOperator> logger, IOptions<ApplicationGeneralSettings> appSettings)
-    {
-        _logger = logger;
-        _appSettings = appSettings.Value;
-    }
-    
     public StoredFileInfo ReadFile(string filePath)
     {
-        _logger.LogDebug($"Reading a file by path: {filePath}");
+        logger.LogDebug($"Reading a file by path: {filePath}");
         var fileInfo = new StoredFileInfo();
         using (var sr = new BinaryReader(File.Open(filePath, FileMode.Open)))
         {
@@ -57,13 +51,11 @@ public class FileOperator: IFileOperator
     
     public void WriteFile(StoredFileInfo fileInfo, string fileName)
     {
-        _logger.LogDebug($"Writing a file: {fileName}");
+        logger.LogDebug($"Writing a file: {fileName}");
         var filePath = CreateFilePath(fileName);
-        
-        using (BinaryWriter bw = new BinaryWriter(File.Open(filePath, FileMode.Create)))
-        {
-            bw.Write(fileInfo.FileBytes);
-        }
+
+        using BinaryWriter bw = new BinaryWriter(File.Open(filePath, FileMode.Create));
+        bw.Write(fileInfo.FileBytes);
     }
 
     private string CreateFilePath(string fileName)

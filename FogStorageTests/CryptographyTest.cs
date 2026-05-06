@@ -6,15 +6,8 @@ using Xunit.Abstractions;
 
 namespace FogStorageTests;
 
-public class CryptographyTest
+public class CryptographyTest(ITestOutputHelper testOutputHelper)
 {
-    private readonly ITestOutputHelper _testOutputHelper;
-
-    public CryptographyTest(ITestOutputHelper testOutputHelper)
-    {
-        _testOutputHelper = testOutputHelper;
-    }
-
     [Theory]
     [InlineData("TestString1")]
     [InlineData("12341234!")]
@@ -38,9 +31,9 @@ public class CryptographyTest
         var privateKey = Convert.ToHexString(rsa.ExportRSAPrivateKey());
         var publicKey = Convert.ToHexString(rsa.ExportRSAPublicKey());
         
-        _testOutputHelper.WriteLine($"Priv key: {privateKey}");
-        _testOutputHelper.WriteLine($"Pub key: {publicKey}");
-        _testOutputHelper.WriteLine($"Test string {testString}, {Encoding.UTF8.GetBytes(testString)}");
+        testOutputHelper.WriteLine($"Private key: {privateKey}");
+        testOutputHelper.WriteLine($"Pub key: {publicKey}");
+        testOutputHelper.WriteLine($"Test string {testString}, {Encoding.UTF8.GetBytes(testString)}");
         
         var encryptedData = RsaEncryptor.RsaBytesEncrypt(Encoding.UTF8.GetBytes(testString), publicKey);
         var decryptedData = RsaEncryptor.RsaBytesDecrypt(encryptedData, privateKey);

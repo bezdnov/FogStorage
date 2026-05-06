@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-using FogStorageBackend.Configuration;
 using FogStorageBackend.Constants;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;

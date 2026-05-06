@@ -4,8 +4,8 @@ namespace FogStorageBackend.Configuration;
 // which handles user requests
 public class ApplicationGeneralSettings
 {
-    public required string ApplicationDefaultFolder { get; set; }
-    public required string ShardFolderName { get; set; }
-    public required string DownloadFolder { get; set; }
-    public required string DbFolderName { get; set; }
+    public required string ApplicationDefaultFolder { get; init; }
+    public required string ShardFolderName { get; init; }
+    public required string DownloadFolder { get; init; }
+    public required string DbFolderName { get; init; }
 }
